@@ -2,12 +2,11 @@ import React from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Auth from "./pages/auth";
 import Chat from "./pages/chat";
-import Profile from "./pages/Profile";
+import Profile from "./pages/profile";
 import { useAppStore } from "./store";
 import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { USER_INFO_ROUTE } from "@/utils/constants.js";
-import { SocketProvider } from "@/context/SocketContext";
 
 const PrivateRoute = ({ children }) => {
   const { userInfo } = useAppStore();
@@ -18,11 +17,12 @@ const PrivateRoute = ({ children }) => {
     return <Navigate to="/auth" replace />;
   }
   
-  if (userInfo.profileSetup === false && location.pathname !== '/profile') {
+  // Check if userInfo exists before accessing profileSetup
+  if (userInfo && userInfo.profileSetup === false && location.pathname !== '/profile') {
     return <Navigate to="/profile" replace />;
   }
   
-  if (userInfo.profileSetup === true && location.pathname === '/profile') {
+  if (userInfo && userInfo.profileSetup === true && location.pathname === '/profile') {
     return <Navigate to="/chat" replace />;
   }
   
@@ -34,7 +34,8 @@ const AuthRoute = ({ children }) => {
   const isAuthenticated = !!userInfo;
   
   if (isAuthenticated) {
-    if (userInfo.profileSetup === false) {
+    // Check if userInfo exists before accessing profileSetup
+    if (userInfo && userInfo.profileSetup === false) {
       return <Navigate to="/profile" replace />;
     }
     return <Navigate to="/chat" replace />;
