@@ -83,8 +83,11 @@ export const getUserInfo = async (request, response) => {
   try {
     const userData = await User.findById(request.userId);
     if (!userData) {
-      return response.status(400).send("User with the given id not found.");
+      return response.status(404).json({ 
+        message: "User not found." 
+      });
     }
+    
     return response.status(200).json({
       id: userData.id,
       email: userData.email,
@@ -93,10 +96,13 @@ export const getUserInfo = async (request, response) => {
       lastName: userData.lastName,
       image: userData.image,
       color: userData.color,
+      // Add any other fields you need
     });
   } catch (error) {
-    console.log({ error });
-    return response.status(500).send("Internal Server Error");
+    console.error("Get user info error:", error);
+    return response.status(500).json({ 
+      message: "Internal Server Error" 
+    });
   }
 };
 
@@ -104,28 +110,47 @@ export const updateProfile = async (request, response) => {
   try {
     const { userId } = request;
     const { firstName, lastName, color } = request.body;
-    if (!firstName || !lastName) {
-      return response.status(400).send("Firstname lastname and color is required.");
+    
+    // ✅ Better validation with clearer messages
+    if (!firstName?.trim() || !lastName?.trim()) {
+      return response.status(400).json({ 
+        message: "First name and last name are required." 
+      });
     }
 
-    const userData = await User.findByIdAndUpdate(
-      userId,
-      { firstName, lastName, color, profileSetup: true },
-      { new: true, runValidators: true }
-    );
+    // ✅ Use findById and save() instead of findByIdAndUpdate for better control
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return response.status(404).json({ 
+        message: "User not found." 
+      });
+    }
+
+    // ✅ Update user fields
+    user.firstName = firstName.trim();
+    user.lastName = lastName.trim();
+    user.color = color || 0; // Default to 0 if not provided
+    user.profileSetup = true; // ✅ Mark profile as setup
+
+    // ✅ Save the updated user
+    await user.save();
 
     return response.status(200).json({
-      id: userData.id,
-      email: userData.email,
-      profileSetup: userData.profileSetup,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      image: userData.image,
-      color: userData.color,
+      id: user.id,
+      email: user.email,
+      profileSetup: user.profileSetup,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      image: user.image,
+      color: user.color,
     });
   } catch (error) {
-    console.log({ error });
-    return response.status(500).send("Internal Server Error");
+    console.error("Update profile error:", error);
+    return response.status(500).json({ 
+      message: "Internal Server Error",
+      error: error.message 
+    });
   }
 };
 

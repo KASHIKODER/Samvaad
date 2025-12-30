@@ -59,30 +59,53 @@ const saveChanges = async () => {
     try {
       const response = await authClient.post(
         UPDATE_PROFILE_ROUTE,
-        { firstName, lastName, color: selectedColor },
-        { withCredentials: true }
+        { 
+          firstName: firstName.trim(), 
+          lastName: lastName.trim(), 
+          color: selectedColor 
+        },
+        { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
       
+      console.log("Profile update response:", response);
+      
       if (response.status === 200 && response.data) {
-        console.log("Profile update successful:", response.data);
-        
-        // ✅ Use updateUserInfo to update specific fields
-        // Assuming you have updateUserInfo in your store
-        setUserInfo({
-          ...userInfo,
+        // ✅ Update store with ALL user info from response
+        setUserInfo(prev => ({
+          ...prev,
           ...response.data,
           profileSetup: true
-        });
+        }));
         
         toast.success("Profile updated successfully.");
-        setIsEditing(false);
         
-        // Navigate immediately
-        navigate("/chat", { replace: true });
+        // ✅ Clear any cached data
+        localStorage.removeItem('userInfo'); // if you use localStorage
+        
+        // ✅ Short delay before navigation for better UX
+        setTimeout(() => {
+          navigate("/chat", { replace: true });
+        }, 500);
       }
     } catch (error) {
       console.error("Profile update error:", error);
-      toast.error("Failed to update profile");
+      
+      // ✅ Better error handling
+      if (error.response) {
+        // Server responded with error
+        toast.error(error.response.data?.message || "Failed to update profile");
+      } else if (error.request) {
+        // Request made but no response
+        toast.error("No response from server. Please check your connection.");
+      } else {
+        // Other errors
+        toast.error("An error occurred. Please try again.");
+      }
     }
   }
 };
