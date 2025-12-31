@@ -1,3 +1,4 @@
+// pages/profile.jsx
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoArrowBack } from "react-icons/io5";
@@ -19,43 +20,63 @@ import {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { userInfo, setUserInfo } = useAppStore();
+  const { userInfo, setUserInfo, updateUserInfo } = useAppStore();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [image, setImage] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [selectedColor, setSelectedColor] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+  const [isInitialSetup, setIsInitialSetup] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (userInfo?.profileSetup) {
-      setFirstName(userInfo.firstName);
-      setLastName(userInfo.lastName);
-      setSelectedColor(userInfo.color);
-    }
-    if (userInfo?.image) {
-      setImage(`${POST}/${userInfo.image}`);
-    } else {
-      setImage(null);
+    if (userInfo) {
+      setFirstName(userInfo.firstName || "");
+      setLastName(userInfo.lastName || "");
+      setSelectedColor(userInfo.color || 0);
+      
+      // Check if this is initial profile setup
+      const isSetup = userInfo.profileSetup === false;
+      setIsInitialSetup(isSetup);
+      
+      // Set isEditing to true for initial setup
+      if (isSetup) {
+        setIsEditing(true);
+      }
+      
+      if (userInfo.image) {
+        setImage(`${POST}/${userInfo.image}`);
+      } else {
+        setImage(null);
+      }
     }
   }, [userInfo]);
 
   const validateProfile = () => {
-    if (!firstName) {
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    
+    if (!trimmedFirstName) {
       toast.error("First Name is required.");
       return false;
     }
-    if (!lastName) {
+    if (!trimmedLastName) {
       toast.error("Last Name is required.");
       return false;
     }
     return true;
   };
 
-// In Profile component - update the saveChanges function
-const saveChanges = async () => {
-  if (validateProfile()) {
+  const saveChanges = async () => {
+    console.log("=== SAVE CHANGES CALLED ===");
+    console.log("isInitialSetup:", isInitialSetup);
+    
+    if (!validateProfile()) return;
+    
+    setIsSaving(true);
+    
     try {
       const response = await authClient.post(
         UPDATE_PROFILE_ROUTE,
@@ -75,47 +96,53 @@ const saveChanges = async () => {
       console.log("Profile update response:", response);
       
       if (response.status === 200 && response.data) {
-        // ✅ Update store with ALL user info from response
-        setUserInfo(prev => ({
-          ...prev,
+        // Update store with ALL user info from response
+        const updatedUserInfo = {
+          ...userInfo,
           ...response.data,
           profileSetup: true
-        }));
+        };
+        
+        // Update store
+        setUserInfo(updatedUserInfo);
+        if (updateUserInfo) {
+          updateUserInfo(response.data);
+        }
         
         toast.success("Profile updated successfully.");
         
-        // ✅ Clear any cached data
-        localStorage.removeItem('userInfo'); // if you use localStorage
+        // Clear any cached data
+        localStorage.removeItem('userInfo');
         
-        // ✅ Short delay before navigation for better UX
+        console.log("Navigating to /chat...");
+        
+        // ALWAYS navigate back to chat after saving
+        // Use setTimeout to ensure React state updates are complete
         setTimeout(() => {
           navigate("/chat", { replace: true });
-        }, 500);
+        }, 100);
       }
     } catch (error) {
       console.error("Profile update error:", error);
       
-      // ✅ Better error handling
       if (error.response) {
-        // Server responded with error
         toast.error(error.response.data?.message || "Failed to update profile");
       } else if (error.request) {
-        // Request made but no response
         toast.error("No response from server. Please check your connection.");
       } else {
-        // Other errors
         toast.error("An error occurred. Please try again.");
       }
+    } finally {
+      setIsSaving(false);
     }
-  }
-};
+  };
 
   const handleLogout = async () => {
     try {
       await authClient.post(LOGOUT_ROUTE, {}, { withCredentials: true });
       setUserInfo(null);
       toast.success("Logged out successfully.");
-      navigate("/auth", { replace: true }); // ✅ always redirect to auth
+      navigate("/auth", { replace: true });
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Logout failed.");
@@ -141,7 +168,11 @@ const saveChanges = async () => {
 
         if (response.status === 200 && response.data.image) {
           const newImageUrl = `${POST}/${response.data.image}`;
-          setUserInfo({ ...userInfo, image: response.data.image });
+          const updatedInfo = { ...userInfo, image: response.data.image };
+          setUserInfo(updatedInfo);
+          if (updateUserInfo) {
+            updateUserInfo({ image: response.data.image });
+          }
           setImage(newImageUrl);
           toast.success("Image updated successfully.");
         }
@@ -153,109 +184,147 @@ const saveChanges = async () => {
   };
 
   const handleDeleteImage = async () => {
-  try {
-    const response = await authClient.delete(REMOVE_PROFILE_IMAGE_ROUTE, {
-      withCredentials: true,
-    });
+    try {
+      const response = await authClient.delete(REMOVE_PROFILE_IMAGE_ROUTE, {
+        withCredentials: true,
+      });
 
-    if (response.status === 200) {
-      setUserInfo({ ...userInfo, image: null });
-      setImage(null);
-      toast.success("Image removed successfully.");
-    } else {
+      if (response.status === 200) {
+        const updatedInfo = { ...userInfo, image: null };
+        setUserInfo(updatedInfo);
+        if (updateUserInfo) {
+          updateUserInfo({ image: null });
+        }
+        setImage(null);
+        toast.success("Image removed successfully.");
+      } else {
+        toast.error("Failed to remove image.");
+      }
+    } catch (error) {
+      console.log(error);
       toast.error("Failed to remove image.");
     }
-  } catch (error) {
-    console.log(error);
-    toast.error("Failed to remove image.");
+  };
+
+  const handleCancel = () => {
+    if (isInitialSetup) {
+      toast.warning("Please complete your profile setup to continue.");
+    } else {
+      setIsEditing(false);
+      setFirstName(userInfo?.firstName || "");
+      setLastName(userInfo?.lastName || "");
+      setSelectedColor(userInfo?.color || 0);
+    }
+  };
+
+  const handleBack = () => {
+    if (isInitialSetup) {
+      toast.warning("Please complete your profile setup to continue.");
+    } else {
+      navigate("/chat", { replace: true });
+    }
+  };
+
+  // If userInfo is null, show loading
+  if (!userInfo) {
+    return (
+      <div className="bg-[#1b1c24] min-h-screen flex items-center justify-center">
+        <div className="text-white text-xl">Loading profile...</div>
+      </div>
+    );
   }
-};
-
-
 
   return (
-    <div className="bg-[#1b1c24] h-[100vh] flex items-center justify-center flex-col gap-10">
-      <div className="flex flex-cols gap-10 w-[80vw] md:w-max">
+    <div className="bg-[#1b1c24] min-h-screen flex items-center justify-center p-4">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-10 w-full max-w-4xl">
         {/* Back Button */}
-        <div>
+        <div className="md:block">
           <IoArrowBack
-            className="text-4xl lg:text-6xl text-white/60 cursor-pointer"
-            onClick={() => navigate("/chat", { replace: true })} // ✅ fixed back always to chat
+            className="text-3xl md:text-4xl lg:text-6xl text-white/60 cursor-pointer hover:text-white/80 transition-colors"
+            onClick={handleBack}
+            title={isInitialSetup ? "Complete profile to continue" : "Back to chat"}
           />
         </div>
 
         {/* Profile Grid */}
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 w-full">
           {/* Avatar Section */}
-          <div
-            className="h-full w-8 md:w-34 relative flex items-center justify-center"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-          >
-            <Avatar className="h-50 w-31 md:w-34 md:h-60 rounded-full overflow-hidden">
-              {image ? (
-                <AvatarImage
-                  src={image}
-                  alt="profile"
-                  className="object-cover w-full h-full"
-                />
-              ) : (
+          <div className="flex flex-col items-center justify-center">
+            <div
+              className="relative flex items-center justify-center mb-4"
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <Avatar className="h-36 w-36 md:h-48 lg:h-60 md:w-48 lg:w-60 rounded-full overflow-hidden border-4 border-[#2c2e3b]">
+                {image ? (
+                  <AvatarImage
+                    src={image}
+                    alt="profile"
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <div
+                    className={`uppercase h-full w-full text-4xl md:text-5xl lg:text-6xl flex items-center justify-center rounded-full ${getColor(
+                      selectedColor
+                    )}`}
+                  >
+                    {firstName
+                      ? firstName.charAt(0).toUpperCase()
+                      : userInfo?.email?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </Avatar>
+
+              {isEditing && hovered && (
                 <div
-                  className={`uppercase h-31 w-31 md:w-50 md:h-35 text-5xl border-[1.5px] flex items-center justify-center rounded-full ${getColor(
-                    selectedColor
-                  )}`}
+                  className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full cursor-pointer transition-all"
+                  onClick={image ? handleDeleteImage : handleFileInputClick}
                 >
-                  {firstName
-                    ? firstName.charAt(0)
-                    : userInfo?.email?.charAt(0)}
+                  {image ? (
+                    <FaTrash className="text-white text-xl md:text-2xl lg:text-3xl" />
+                  ) : (
+                    <FaPlus className="text-white text-xl md:text-2xl lg:text-3xl" />
+                  )}
                 </div>
               )}
-            </Avatar>
-
-            {hovered && (
-              <div
-                className="absolute inset-0 flex items-center justify-center bg-black/40 ring-fuchsia-50 rounded-full"
-                onClick={image ? handleDeleteImage : handleFileInputClick}
-              >
-                {image ? (
-                  <FaTrash className="text-white text-3xl cursor-pointer" />
-                ) : (
-                  <FaPlus className="text-white text-3xl cursor-pointer" />
-                )}
-              </div>
-            )}
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={handleImageChange}
-              name="profile-image"
-              accept=".png, .jpg, .jpeg, .svg, .webp"
-            />
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleImageChange}
+                name="profile-image"
+                accept=".png, .jpg, .jpeg, .svg, .webp"
+              />
+            </div>
           </div>
 
           {/* Inputs + Colors + Buttons */}
-          <div className="flex min-w-65 md:min-w-64 flex-col gap-6 text-white items-center justify-center">
+          <div className="flex flex-col gap-4 md:gap-6 text-white">
             {/* Email */}
             <div className="w-full">
+              <label className="block text-sm font-medium mb-2 text-gray-400">
+                Email
+              </label>
               <Input
-                placeholder="Email"
                 type="email"
                 disabled
-                value={userInfo?.email}
-                className="w-full rounded-lg p-6 bg-[#2c2e3b] border-none"
+                value={userInfo?.email || ""}
+                className="w-full rounded-lg p-3 md:p-4 bg-[#2c2e3b] border-none"
               />
             </div>
 
             {/* First Name */}
             <div className="w-full">
+              <label className="block text-sm font-medium mb-2 text-gray-400">
+                First Name
+              </label>
               <Input
                 placeholder="First Name"
                 type="text"
                 disabled={!isEditing}
                 onChange={(e) => setFirstName(e.target.value)}
                 value={firstName}
-                className={`rounded-lg p-6 ${
+                className={`rounded-lg p-3 md:p-4 ${
                   isEditing ? "bg-[#2c2e3b]" : "bg-[#2c2e3b]/50"
                 } border-none`}
               />
@@ -263,13 +332,16 @@ const saveChanges = async () => {
 
             {/* Last Name */}
             <div className="w-full">
+              <label className="block text-sm font-medium mb-2 text-gray-400">
+                Last Name
+              </label>
               <Input
                 placeholder="Last Name"
                 type="text"
                 disabled={!isEditing}
                 onChange={(e) => setLastName(e.target.value)}
                 value={lastName}
-                className={`rounded-lg p-6 ${
+                className={`rounded-lg p-3 md:p-4 ${
                   isEditing ? "bg-[#2c2e3b]" : "bg-[#2c2e3b]/50"
                 } border-none`}
               />
@@ -277,49 +349,59 @@ const saveChanges = async () => {
 
             {/* Color Selection */}
             {isEditing && (
-              <div className="w-full flex gap-5 justify-center">
-                {colors.map((color, index) => (
-                  <div
-                    className={`${color} h-8 w-8 rounded-full cursor-pointer transition-all duration-300 ${
-                      selectedColor === index
-                        ? "outline outline-white/50 outline-1"
-                        : ""
-                    }`}
-                    key={index}
-                    onClick={() => setSelectedColor(index)}
-                  ></div>
-                ))}
+              <div className="w-full">
+                <label className="block text-sm font-medium mb-3 text-gray-400">
+                  Profile Color
+                </label>
+                <div className="flex flex-wrap gap-2 md:gap-3">
+                  {colors.map((color, index) => (
+                    <div
+                      className={`${color} h-8 w-8 md:h-10 md:w-10 rounded-full cursor-pointer transition-all duration-300 ${
+                        selectedColor === index
+                          ? "outline-2 outline-white outline-offset-2"
+                          : ""
+                      }`}
+                      key={index}
+                      onClick={() => setSelectedColor(index)}
+                      title={`Color ${index + 1}`}
+                    ></div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Buttons */}
-            <div className="w-full mt-3 flex gap-3">
+            <div className="w-full mt-4 flex flex-col sm:flex-row gap-2 md:gap-3">
               {isEditing ? (
                 <>
                   <Button
-                    className="h-13 w-32 bg-purple-700 hover:bg-purple-900 transition-all duration-300"
+                    className="h-10 md:h-12 flex-1 bg-purple-600 hover:bg-purple-700 transition-all duration-300"
                     onClick={saveChanges}
+                    disabled={isSaving}
                   >
-                    Save Changes
+                    {isSaving ? "Saving..." : isInitialSetup ? "Continue to Chat" : "Save Changes"}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    className="h-13 w-32 bg-gray-600 hover:bg-gray-800"
-                    onClick={() => setIsEditing(false)}
-                  >
-                    Cancel
-                  </Button>
+                  {!isInitialSetup && (
+                    <Button
+                      variant="secondary"
+                      className="h-10 md:h-12 flex-1 bg-gray-600 hover:bg-gray-700"
+                      onClick={handleCancel}
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
                   <Button
-                    className="h-13 w-32 bg-blue-600 hover:bg-blue-800"
+                    className="h-10 md:h-12 flex-1 bg-blue-600 hover:bg-blue-700"
                     onClick={() => setIsEditing(true)}
                   >
-                    Edit
+                    Edit Profile
                   </Button>
                   <Button
-                    className="h-13 w-32 bg-red-600 hover:bg-red-800"
+                    className="h-10 md:h-12 flex-1 bg-red-600 hover:bg-red-700"
                     onClick={handleLogout}
                   >
                     Logout
@@ -330,6 +412,27 @@ const saveChanges = async () => {
           </div>
         </div>
       </div>
+
+      {/* CSS to hide scrollbars on mobile */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          /* Hide scrollbar for Chrome, Safari and Opera */
+          body {
+            overflow: hidden;
+          }
+          
+          /* Hide scrollbar for IE, Edge and Firefox */
+          body {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+          }
+          
+          /* Hide scrollbar for Chrome, Safari and Opera */
+          body::-webkit-scrollbar {
+            display: none;
+          }
+        }
+      `}</style>
     </div>
   );
 };

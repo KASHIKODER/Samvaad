@@ -57,11 +57,11 @@ const NewDM = () => {
       <Tooltip>
         <TooltipTrigger>
           <FaPlus
-            className="text-neutral-400 font-light text-opacity-90 text-start hover:text-neutral-100 cursor-pointer transition-all duration-300"
+            className="text-neutral-400 font-light text-opacity-90 text-start hover:text-neutral-100 cursor-pointer transition-all duration-300 text-lg md:text-xl"
             onClick={() => setOpenNewContactModal(true)}
           />
         </TooltipTrigger>
-        <TooltipContent className="bg-[#1c1b1e] border-none mb-2 p-3 text-white">
+        <TooltipContent className="bg-[#1c1b1e] border-none mb-2 p-2 md:p-3 text-white text-xs md:text-sm">
           Select New Contact
         </TooltipContent>
       </Tooltip>
@@ -70,40 +70,44 @@ const NewDM = () => {
         open={openNewContactModal}
         onOpenChange={setOpenNewContactModal}
       >
-        <DialogContent className="bg-[#101820] border-none text-white w-[400px] h-[400px] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Please select a contact</DialogTitle>
-            <DialogDescription></DialogDescription>
+        <DialogContent className="bg-[#101820] border-none text-white w-[380px] max-w-[95vw] h-[420px] flex flex-col p-4">
+          <DialogHeader className="px-0">
+            <DialogTitle className="text-lg">
+              Select a contact
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Search and select a contact to start a new conversation
+            </DialogDescription>
           </DialogHeader>
 
-          <div>
+          <div className="px-0 mb-3">
             <Input
               placeholder="Search Contacts"
-              className="rounded-lg p-6 bg-[#2c2e3b] border-none"
+              className="rounded-lg p-3 bg-[#2c2e3b] border-none w-full text-sm"
               onChange={(e) => searchContacts(e.target.value)}
             />
           </div>
 
-          {searchedContacts.length > 0 && (
-            <ScrollArea className="h-[250px]">
-              <div className="flex flex-col gap-5">
+          {searchedContacts.length > 0 ? (
+            <ScrollArea className="flex-1 min-h-[200px] max-h-[280px] px-0">
+              <div className="flex flex-col gap-2 pr-3">
                 {searchedContacts.map((contact) => (
                   <div
                     key={contact._id}
-                    className="flex items-center gap-3 cursor-pointer"
+                    className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-[#2c2e3b]/50 transition-all duration-200"
                     onClick={() => selectNewContact(contact)}
                   >
-                    <div className="w-12 h-12 relative">
-                      <Avatar className="h-12 w-12 rounded-full overflow-hidden">
+                    <div className="w-9 h-9 flex-shrink-0">
+                      <Avatar className="h-full w-full rounded-full overflow-hidden">
                         {contact.image ? (
                           <AvatarImage
                             src={`${POST}/${contact.image}`}
-                            alt="Profile"
+                            alt={`${contact.firstName || contact.email}'s profile`}
                             className="object-cover w-full h-full bg-black rounded-full"
                           />
                         ) : (
                           <div
-                            className={`uppercase h-12 w-12 text-lg border-[1px] flex items-center justify-center rounded-full text-white font-semibold ${getColor(
+                            className={`uppercase h-full w-full text-sm border-[1px] flex items-center justify-center rounded-full text-white font-semibold ${getColor(
                               contact.color
                             )}`}
                           >
@@ -114,33 +118,37 @@ const NewDM = () => {
                         )}
                       </Avatar>
                     </div>
-                    <div className="flex flex-col">
-                      <span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">
                         {contact.firstName && contact.lastName
                           ? `${contact.firstName} ${contact.lastName}`
                           : contact.email}
                       </span>
-                      <span className="text-xs">{contact.email}</span>
+                      <span className="text-xs text-gray-400 truncate">
+                        {contact.email}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             </ScrollArea>
-          )}
-
-          {searchedContacts.length <= 0 && (
-            <div className="flex-1 md:flex flex-col justify-center items-center mt-5 md:mt-0 duration-1000 transition-all">
-              <Lottie
-                animationData={animationDefaultOptions}
-                loop={true}
-                autoplay={true}
-                className="w-[120px] h-[130px]"
-              />
-              <div className="text-opacity-80 text-white flex flex-col gap-5 items-center mt-5 lg:text-2xl text-xl transition-all duration-300 text-center">
-                <h3 className="poppins-medium">
-                  Hi<span className="text-purple-500">! </span>Search new
-                  <span className="text-purple-500"> Contact. </span>
+          ) : (
+            <div className="flex-1 flex flex-col justify-center items-center px-0">
+              <div className="w-[90px] h-[100px]">
+                <Lottie
+                  animationData={animationDefaultOptions}
+                  loop={true}
+                  autoplay={true}
+                  className="w-full h-full"
+                />
+              </div>
+              <div className="text-opacity-80 text-white flex flex-col gap-2 items-center mt-3 text-center">
+                <h3 className="poppins-medium text-base">
+                  Search new <span className="text-purple-500">Contact</span>
                 </h3>
+                <p className="text-gray-400 text-xs">
+                  Type in the search box to find contacts
+                </p>
               </div>
             </div>
           )}

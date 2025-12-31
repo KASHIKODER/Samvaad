@@ -47,30 +47,75 @@ const Auth = () => {
 
   const validateLogin = () => {
     if (!email.trim()) {
-      toast.error("Email is required");
+      toast.error("✗ Email is required", {
+        description: "Please enter your email address"
+      });
       return false;
     }
+    
     if (!password.trim()) {
-      toast.error("Password is required");
+      toast.error("✗ Password is required", {
+        description: "Please enter your password"
+      });
       return false;
     }
+    
     if (!/\S+@\S+\.\S+/.test(email)) {
-      toast.error("Please enter a valid email");
+      toast.error("✗ Invalid email format", {
+        description: "Please enter a valid email address"
+      });
       return false;
     }
+    
     return true;
   };
 
   const validateSignup = () => {
-    if (!validateLogin()) return false;
-    if (password !== confirmPassword) {
-      toast.error("Passwords don't match");
+    // Check email
+    if (!email.trim()) {
+      toast.error("✗ Email is required", {
+        description: "Please enter your email address"
+      });
       return false;
     }
+    
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      toast.error("✗ Invalid email format", {
+        description: "Please enter a valid email address"
+      });
+      return false;
+    }
+    
+    // Check password
+    if (!password.trim()) {
+      toast.error("✗ Password is required", {
+        description: "Please create a password"
+      });
+      return false;
+    }
+    
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error("✗ Password too short", {
+        description: "Password must be at least 6 characters long"
+      });
       return false;
     }
+    
+    // Check confirm password
+    if (!confirmPassword.trim()) {
+      toast.error("✗ Confirm password required", {
+        description: "Please confirm your password"
+      });
+      return false;
+    }
+    
+    if (password !== confirmPassword) {
+      toast.error("✗ Passwords don't match", {
+        description: "Please make sure both passwords match"
+      });
+      return false;
+    }
+    
     return true;
   };
 
@@ -87,7 +132,9 @@ const Auth = () => {
       
       if (response.data.user?.id) {
         setUserInfo(response.data.user);
-        toast.success("Welcome back!");
+        toast.success("✓ Login successful!", {
+          description: "Welcome back to Samvaad!"
+        });
         
         setTimeout(() => {
           if (response.data.user.profileSetup) {
@@ -98,7 +145,33 @@ const Auth = () => {
         }, 500);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      const errorMessage = error.response?.data?.message;
+      
+      if (errorMessage === "User with the given email not found.") {
+        toast.error("✗ Email not found", {
+          description: "This email is not registered. Please sign up first."
+        });
+      } else if (errorMessage === "Password is incorrect.") {
+        toast.error("✗ Incorrect password", {
+          description: "The password you entered is incorrect. Please try again."
+        });
+      } else if (errorMessage === "Email and Password is required.") {
+        toast.error("✗ Missing information", {
+          description: "Both email and password are required."
+        });
+      } else if (error.response?.status === 404) {
+        toast.error("✗ User not found", {
+          description: "This email is not registered. Please sign up first."
+        });
+      } else if (error.response?.status === 400) {
+        toast.error("✗ Invalid credentials", {
+          description: "Please check your email and password."
+        });
+      } else {
+        toast.error("✗ Login failed", {
+          description: errorMessage || "Something went wrong. Please try again."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +190,9 @@ const Auth = () => {
       
       if (response.data.user?.id) {
         setUserInfo(response.data.user);
-        toast.success("Account created successfully!");
+        toast.success("✓ Account created!", {
+          description: "Welcome to Samvaad! Your account has been created successfully."
+        });
         
         setTimeout(() => {
           if (response.data.user.profileSetup) {
@@ -128,10 +203,46 @@ const Auth = () => {
         }, 500);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Signup failed");
+      const errorMessage = error.response?.data?.message;
+      
+      if (errorMessage === "Email already exists." || error.code === 11000) {
+        toast.error("✗ Email already registered", {
+          description: "This email is already in use. Please try logging in instead."
+        });
+      } else if (errorMessage === "Email and Password is required.") {
+        toast.error("✗ Missing information", {
+          description: "Both email and password are required."
+        });
+      } else if (error.response?.status === 409) {
+        toast.error("✗ Email already exists", {
+          description: "This email is already registered. Please use a different email or login."
+        });
+      } else if (error.response?.status === 404) {
+        toast.error("✗ Required fields missing", {
+          description: "Please fill in all required fields."
+        });
+      } else {
+        toast.error("✗ Signup failed", {
+          description: errorMessage || "Something went wrong. Please try again."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper function to show success toast
+  const showSuccessToast = (message, description = "") => {
+    toast.success(`✓ ${message}`, {
+      description: description
+    });
+  };
+
+  // Helper function to show error toast
+  const showErrorToast = (message, description = "") => {
+    toast.error(`✗ ${message}`, {
+      description: description
+    });
   };
 
   return (
@@ -164,7 +275,7 @@ const Auth = () => {
       </div>
 
       {/* Main content with scrollable container for mobile */}
-      <div className="relative z-10 h-full w-full flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="relative z-10 h-full w-full flex items-center justify-center p-2 sm:p-4">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
