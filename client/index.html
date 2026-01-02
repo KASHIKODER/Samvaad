@@ -2,9 +2,55 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/logo.png" />
+    
+    <!-- Multiple icon sizes for different devices -->
+    <link rel="icon" href="/logo.png" sizes="any" />
+    <link rel="icon" href="/logo.png" type="image/png" />
+    <link rel="icon" href="/logo.png" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="apple-touch-icon-precomposed" href="/logo.png" />
+    <link rel="shortcut icon" href="/logo.png" />
+    
+    <!-- Larger icon for high-DPI displays -->
+    <link rel="icon" href="/logo.png" sizes="192x192" />
+    <link rel="icon" href="/logo.png" sizes="512x512" />
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Samwaad</title>
+    
+    <!-- Enhanced Cool Title -->
+    <title>Samvaad </title>
+    
+    <!-- Add some meta tags for better appearance -->
+    <meta name="theme-color" content="#7c3aed">
+    <meta name="description" content="Samvaad - Where meaningful conversations happen">
+    
+    <!-- Add a subtle CSS effect just for the favicon preview -->
+    <style>
+      /* This CSS only enhances how the favicon/title appear during page load */
+      body:before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, 
+          #ff6b6b, 
+          #ffa726, 
+          #66bb6a, 
+          #42a5f5, 
+          #7e57c2, 
+          #ec407a);
+        background-size: 400% 100%;
+        animation: gradientShift 3s ease infinite;
+        z-index: 9999;
+      }
+      
+      @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
